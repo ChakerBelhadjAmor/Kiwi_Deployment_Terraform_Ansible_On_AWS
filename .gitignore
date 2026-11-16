@@ -1,0 +1,77 @@
+# Project docs and planning (private, not for GitHub)
+docs/
+plan.md
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+tfplan
+*.tfplan
+# keep .terraform.lock.hcl committed
+
+# Ansible
+ansible/inventory/*
+!ansible/inventory/.gitkeep
+**/group_vars/**/vault.yml
+*.retry
+.vault_pass
+.vault_pass.txt
+*.vault_pass
+ansible/.facts/
+
+# Kiwi API client config (holds credentials)
+.tcms.conf
+tcms.conf
+
+# Keys & certs
+*.pem
+*.key
+*.ppk
+id_rsa*
+id_ed25519*
+*.crt
+*.p12
+
+# Env / credentials
+.env
+.env.*
+!.env.example
+*.env
+.aws/
+credentials
+*.secret
+secrets/
+.envrc
+
+# Backups & dumps
+*.sql
+*.sql.gz
+*.dump
+backups/
+
+# Spreadsheets / PDFs (test data and course material)
+*.xlsx
+*.xls
+*.pdf
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.log
+
+# Executor scratch
+.superpowers/
