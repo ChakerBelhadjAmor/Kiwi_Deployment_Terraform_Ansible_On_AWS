@@ -44,12 +44,14 @@
       - compose
       - exec
       - -T
+      # No value after -e: docker forwards the variable from the caller's
+      # environment, so the password never appears in process arguments.
       - -e
-      - "KIWI_ADMIN_USER={{ vault_kiwi_admin_user }}"
+      - KIWI_ADMIN_USER
       - -e
-      - "KIWI_ADMIN_EMAIL={{ vault_kiwi_admin_email }}"
+      - KIWI_ADMIN_EMAIL
       - -e
-      - "KIWI_ADMIN_PASSWORD={{ vault_kiwi_admin_password }}"
+      - KIWI_ADMIN_PASSWORD
       - web
       - /Kiwi/manage.py
       - shell
@@ -65,6 +67,10 @@
             U.objects.create_superuser(name, os.environ["KIWI_ADMIN_EMAIL"], os.environ["KIWI_ADMIN_PASSWORD"])
             print("created")
     chdir: "{{ kiwi_dir }}"
+  environment:
+    KIWI_ADMIN_USER: "{{ vault_kiwi_admin_user }}"
+    KIWI_ADMIN_EMAIL: "{{ vault_kiwi_admin_email }}"
+    KIWI_ADMIN_PASSWORD: "{{ vault_kiwi_admin_password }}"
   register: kiwi_admin
   changed_when: "'created' in kiwi_admin.stdout"
   no_log: true

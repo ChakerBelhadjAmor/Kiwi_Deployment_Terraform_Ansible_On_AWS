@@ -2,5 +2,7 @@
 # Points {{ vault_duckdns_subdomain }}.duckdns.org at this host's Elastic IP.
 set -eu
 . /etc/duckdns.env
-result=$(curl -fsS "https://www.duckdns.org/update?domains=${DUCKDNS_SUBDOMAIN}&token=${DUCKDNS_TOKEN}&ip={{ ansible_host }}")
+# The URL (with the token) goes to curl on stdin (-K -), never on its argument list.
+result=$(printf 'url = "https://www.duckdns.org/update?domains=%s&token=%s&ip=%s"\n' \
+  "$DUCKDNS_SUBDOMAIN" "$DUCKDNS_TOKEN" "{{ ansible_host }}" | curl -fsS -K -)
 [ "$result" = "OK" ] || { echo "DuckDNS update failed" >&2; exit 1; }
