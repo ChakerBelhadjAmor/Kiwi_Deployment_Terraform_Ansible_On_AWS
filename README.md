@@ -1,6 +1,6 @@
 # Kiwi TCMS on AWS (Terraform + Ansible)
 
-Provisions one `t3.small` EC2 VM in `us-east-1` and runs Kiwi TCMS behind Caddy
+Provisions one `t3.small` EC2 VM in `eu-north-1` and runs Kiwi TCMS behind Caddy
 with a free DuckDNS name and a Let's Encrypt certificate. Expected cost is about
 $21 for one month. Everything is removed by `terraform destroy`.
 
