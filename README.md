@@ -73,11 +73,12 @@ python importer/import_xlsx.py docs/*.xlsx --product "Budget Tracker"
 Re-running is safe: existing cases are skipped. `Budget_Tracker_Tests_Niveaux.xlsx`
 repeats the other four workbooks, so IDs are de-duplicated (206 unique cases).
 
-Publish the functional / non-functional requirements tables as a test plan
+Publish the requirements as two test plans, "Besoin fonctionnel" and "Besoin non fonctionnel"
 (Kiwi has no wiki; a plan description renders Markdown tables and shows in the dashboard):
 
 ```sh
-python importer/import_requirements.py docs/exigences.md --product "Budget Tracker"
+python importer/import_requirements.py docs/besoin_fonctionnel.md     --product "Budget Tracker" --plan-name "Besoin fonctionnel"
+python importer/import_requirements.py docs/besoin_non_fonctionnel.md --product "Budget Tracker" --plan-name "Besoin non fonctionnel"
 ```
 
 Try the importer first against a throwaway local Kiwi (verified: 206 cases, re-run is a no-op):
