@@ -1,0 +1,9 @@
+---
+- name: Configure the Kiwi TCMS host
+  hosts: kiwi
+  become: true
+  roles:
+    - common
+    - docker
+    - caddy
+    - kiwi

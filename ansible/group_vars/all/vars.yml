@@ -1,0 +1,14 @@
+---
+# Non-secret settings. Secrets live in vault.yml (encrypted, gitignored).
+swap_size_mb: 2048
+
+# Kiwi publishes no versioned images on Docker Hub; the official registry only
+# serves :latest. Record the pulled image digest in README after first deploy.
+kiwi_image: pub.kiwitcms.eu/kiwitcms/kiwitcms
+kiwi_image_tag: latest
+mariadb_image_tag: "11.8"
+caddy_image_tag: "2.11-alpine"
+
+kiwi_dir: /opt/kiwi
+kiwi_backup_dir: /var/backups/kiwi
+kiwi_backup_keep_days: 7

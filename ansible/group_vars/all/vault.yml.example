@@ -1,0 +1,11 @@
+---
+# Copy to vault.yml, fill in, then: ansible-vault encrypt group_vars/all/vault.yml
+# Generate random values with: openssl rand -base64 32
+vault_kiwi_admin_user: "admin"
+vault_kiwi_admin_email: "admin@example.com"
+vault_kiwi_admin_password: "CHANGE_ME"
+vault_mariadb_root_password: "CHANGE_ME"
+vault_mariadb_password: "CHANGE_ME"
+vault_django_secret_key: "CHANGE_ME"
+vault_duckdns_token: "CHANGE_ME"
+vault_duckdns_subdomain: "your-subdomain"

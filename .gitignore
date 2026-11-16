@@ -75,3 +75,7 @@ backups/
 
 # Executor scratch
 .superpowers/
+
+# Ansible tool caches
+.ansible/
+.cache/
