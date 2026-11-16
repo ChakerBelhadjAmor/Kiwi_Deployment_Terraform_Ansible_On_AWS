@@ -167,7 +167,7 @@ def test_import_cases_aborts_after_max_errors():
         ("https://127.0.0.1:8443/xml-rpc/", True),
         ("https://localhost:8443/xml-rpc/", True),
         ("https://[::1]:8443/xml-rpc/", True),
-        ("https://qaproject.duckdns.org/xml-rpc/", False),
+        ("https://kiwi.example.org/xml-rpc/", False),
         ("https://127.0.0.1.evil.example/xml-rpc/", False),
         ("", False),
     ],
