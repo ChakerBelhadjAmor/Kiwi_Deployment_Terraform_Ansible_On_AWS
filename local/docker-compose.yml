@@ -1,0 +1,29 @@
+# Throwaway local Kiwi for testing the importer. Passwords are NOT secret:
+# the stack listens on 127.0.0.1 only and is deleted with `down -v`.
+services:
+  db:
+    image: mariadb:11.8
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MARIADB_ROOT_PASSWORD: local-root
+      MARIADB_DATABASE: kiwi
+      MARIADB_USER: kiwi
+      MARIADB_PASSWORD: local-kiwi
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      retries: 12
+  web:
+    image: pub.kiwitcms.eu/kiwitcms/kiwitcms:latest
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8443:8443"
+    environment:
+      KIWI_DB_HOST: db
+      KIWI_DB_PORT: "3306"
+      KIWI_DB_NAME: kiwi
+      KIWI_DB_USER: kiwi
+      KIWI_DB_PASSWORD: local-kiwi
+      KIWI_SECRET_KEY: local-only-not-a-secret
