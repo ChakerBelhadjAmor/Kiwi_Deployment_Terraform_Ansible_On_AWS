@@ -71,15 +71,19 @@ python importer/import_xlsx.py docs/*.xlsx --product "Budget Tracker"
 Re-running is safe: existing cases are skipped. `Budget_Tracker_Tests_Niveaux.xlsx`
 repeats the other four workbooks, so IDs are de-duplicated (206 unique cases).
 
-Try the importer first against a throwaway local Kiwi:
+Try the importer first against a throwaway local Kiwi (verified: 206 cases, re-run is a no-op):
 
 ```sh
 docker compose -f local/docker-compose.yml up -d
-docker compose -f local/docker-compose.yml exec web /Kiwi/manage.py migrate --noinput
-docker compose -f local/docker-compose.yml exec web /Kiwi/manage.py createsuperuser
-# point ~/.tcms.conf at https://127.0.0.1:8443/xml-rpc/ (self-signed cert), run the importer
-docker compose -f local/docker-compose.yml down -v
+k() { docker compose -f local/docker-compose.yml exec -T web /Kiwi/manage.py "$@"; }
+k migrate --noinput && k createsuperuser     # or any admin you like
+# ~/.tcms.conf -> url = https://127.0.0.1:8443/xml-rpc/ (+ that admin's credentials)
+# The local cert is self-signed for another hostname, so for LOCAL testing only:
+KIWI_INSECURE_TLS=1 python importer/import_xlsx.py docs/*.xlsx --product "Budget Tracker"
+docker compose -f local/docker-compose.yml down -v && rm ~/.tcms.conf
 ```
+
+Never set `KIWI_INSECURE_TLS` against the real server: it has a valid certificate.
 
 ## 4. Verify
 

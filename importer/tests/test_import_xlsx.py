@@ -149,3 +149,13 @@ def test_create_case_reuses_orphan_and_links_it_to_plan():
     assert "TestCase.create" not in names  # no duplicate
     assert ("TestPlan.add_case", (5, 99)) in rpc.calls
     assert ("TestCase.add_tag", (99, "BF-01")) in rpc.calls
+
+
+def test_import_cases_aborts_after_max_errors():
+    class Down(FakeClient):
+        def ensure_plan(self, product, plan_name):
+            raise ConnectionError("down")
+
+    rows = [TestCaseRow(f"CP-{i}", "Composant", "t", "Haute", "BF", "c", "d", "p", "q", "e") for i in range(50)]
+    report = import_cases(rows, Down(), "Budget Tracker", dry_run=False, max_errors=3)
+    assert report.errors == 3 and report.created == 0

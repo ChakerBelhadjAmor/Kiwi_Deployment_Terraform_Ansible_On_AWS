@@ -20,6 +20,8 @@ services:
         condition: service_healthy
     ports:
       - "127.0.0.1:8443:8443"
+      - "127.0.0.1:8080:8080"
+    cap_drop: [ALL]   # same as production; proves Kiwi runs without capabilities
     environment:
       KIWI_DB_HOST: db
       KIWI_DB_PORT: "3306"

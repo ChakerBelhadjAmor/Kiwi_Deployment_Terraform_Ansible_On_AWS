@@ -17,6 +17,7 @@ Credentials come from ~/.tcms.conf (never from arguments or this repo).
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -126,7 +127,9 @@ def load_cases(path: Path) -> list[TestCaseRow]:
     return rows
 
 
-def import_cases(rows: list[TestCaseRow], client: KiwiClient, product: str, dry_run: bool) -> ImportReport:
+def import_cases(
+    rows: list[TestCaseRow], client: KiwiClient, product: str, dry_run: bool, max_errors: int = 10
+) -> ImportReport:
     created = skipped = errors = 0
     seen: set[tuple[str, str]] = set()
     plan_ids: dict[str, int] = {}
@@ -151,6 +154,9 @@ def import_cases(rows: list[TestCaseRow], client: KiwiClient, product: str, dry_
         except Exception as exc:  # keep going; report at the end
             print(f"ERROR {row.case_id}: {exc}", file=sys.stderr)
             errors += 1
+            if errors >= max_errors:
+                print(f"Aborting after {errors} errors", file=sys.stderr)
+                break
     return ImportReport(created=created, skipped=skipped, errors=errors)
 
 
@@ -247,6 +253,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--product", required=True)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
+
+    if os.environ.get("KIWI_INSECURE_TLS") == "1":  # LOCAL TESTING ONLY (self-signed cert)
+        import ssl
+
+        ssl._create_default_https_context = ssl._create_unverified_context
+        print("WARNING: TLS verification disabled", file=sys.stderr)
 
     rows = [r for f in args.files for r in load_cases(f)]
     client = None if args.dry_run else KiwiRpcClient()
