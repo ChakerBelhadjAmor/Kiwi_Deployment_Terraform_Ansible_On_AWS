@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars (gitignored) and fill in. Never commit real values.
+region              = "us-east-1"
+admin_cidr          = "203.0.113.10/32"   # your public IP + /32
+ssh_public_key_path = "~/.ssh/kiwi_aws.pub"
+expires_tag         = "2099-01-31"
+alert_email         = "you@example.com"
+budget_limit_usd    = 30
