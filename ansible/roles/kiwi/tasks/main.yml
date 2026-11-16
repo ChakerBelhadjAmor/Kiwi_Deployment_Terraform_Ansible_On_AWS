@@ -1,2 +1,97 @@
 ---
-[]
+- name: Create backup directory
+  ansible.builtin.file:
+    path: "{{ kiwi_backup_dir }}"
+    state: directory
+    mode: "0700"
+
+- name: Install compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ kiwi_dir }}/docker-compose.yml"
+    mode: "0644"
+
+- name: Install env files (secrets)
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ kiwi_dir }}/{{ item }}"
+    owner: root
+    group: root
+    mode: "0600"
+  loop: [db.env, web.env]
+  no_log: true
+
+- name: Start the stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ kiwi_dir }}"
+    state: present
+    pull: missing
+    wait: true
+    wait_timeout: 300
+  register: kiwi_up
+
+- name: Apply Kiwi database migrations
+  ansible.builtin.command:
+    cmd: docker compose exec -T web /Kiwi/manage.py migrate --noinput
+    chdir: "{{ kiwi_dir }}"
+  register: kiwi_migrate
+  changed_when: "'Applying' in kiwi_migrate.stdout"
+
+- name: Create the admin user if missing
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - exec
+      - -T
+      - -e
+      - "KIWI_ADMIN_USER={{ vault_kiwi_admin_user }}"
+      - -e
+      - "KIWI_ADMIN_EMAIL={{ vault_kiwi_admin_email }}"
+      - -e
+      - "KIWI_ADMIN_PASSWORD={{ vault_kiwi_admin_password }}"
+      - web
+      - /Kiwi/manage.py
+      - shell
+      - -c
+      - |
+        import os
+        from django.contrib.auth import get_user_model
+        U = get_user_model()
+        name = os.environ["KIWI_ADMIN_USER"]
+        if U.objects.filter(username=name).exists():
+            print("exists")
+        else:
+            U.objects.create_superuser(name, os.environ["KIWI_ADMIN_EMAIL"], os.environ["KIWI_ADMIN_PASSWORD"])
+            print("created")
+    chdir: "{{ kiwi_dir }}"
+  register: kiwi_admin
+  changed_when: "'created' in kiwi_admin.stdout"
+  no_log: true
+
+- name: Wait for Kiwi to answer through Caddy over HTTPS
+  ansible.builtin.uri:
+    url: "https://{{ vault_duckdns_subdomain }}.duckdns.org/accounts/login/"
+    status_code: [200, 302]
+  register: kiwi_http
+  until: kiwi_http.status in [200, 302]
+  retries: 30
+  delay: 10
+  changed_when: false
+  no_log: true
+
+- name: Install backup script
+  ansible.builtin.template:
+    src: backup.sh.j2
+    dest: /usr/local/sbin/kiwi-backup.sh
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Schedule the daily backup
+  ansible.builtin.cron:
+    name: kiwi database backup
+    minute: "30"
+    hour: "2"
+    job: /usr/local/sbin/kiwi-backup.sh
+    user: root

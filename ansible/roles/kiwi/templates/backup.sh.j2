@@ -1,0 +1,8 @@
+#!/bin/sh
+# Daily Kiwi database dump; keeps {{ kiwi_backup_keep_days }} days.
+set -eu
+cd {{ kiwi_dir }}
+out="{{ kiwi_backup_dir }}/kiwi-$(date +%F-%H%M).sql.gz"
+docker compose exec -T db sh -c 'mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" --single-transaction kiwi' | gzip > "$out"
+chmod 600 "$out"
+find {{ kiwi_backup_dir }} -name 'kiwi-*.sql.gz' -mtime +{{ kiwi_backup_keep_days }} -delete

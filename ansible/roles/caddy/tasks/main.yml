@@ -1,2 +1,62 @@
 ---
-[]
+- name: Create Kiwi project directory
+  ansible.builtin.file:
+    path: "{{ kiwi_dir }}"
+    state: directory
+    mode: "0750"
+
+- name: Install DuckDNS credentials file
+  ansible.builtin.template:
+    src: duckdns.env.j2
+    dest: /etc/duckdns.env
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Install DuckDNS update script
+  ansible.builtin.template:
+    src: duckdns-update.sh.j2
+    dest: /usr/local/sbin/duckdns-update.sh
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Point DuckDNS at this host
+  ansible.builtin.command:
+    cmd: /usr/local/sbin/duckdns-update.sh
+  changed_when: false
+  no_log: true
+
+- name: Wait until the hostname resolves to this host
+  ansible.builtin.command:
+    cmd: "dig +short A {{ vault_duckdns_subdomain }}.duckdns.org @1.1.1.1"
+  register: caddy_dns
+  until: ansible_host in caddy_dns.stdout_lines
+  retries: 30
+  delay: 10
+  changed_when: false
+  no_log: true
+
+- name: Install DuckDNS systemd units
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "/etc/systemd/system/{{ item.dest }}"
+    mode: "0644"
+  loop:
+    - { src: duckdns-update.service.j2, dest: duckdns-update.service }
+    - { src: duckdns-update.timer.j2, dest: duckdns-update.timer }
+
+- name: Enable the DuckDNS refresh timer
+  ansible.builtin.systemd:
+    name: duckdns-update.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Install Caddyfile
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: "{{ kiwi_dir }}/Caddyfile"
+    mode: "0644"
+  no_log: true

@@ -1,0 +1,51 @@
+# Managed by Ansible. Only Caddy publishes ports.
+services:
+  db:
+    image: mariadb:{{ mariadb_image_tag }}
+    restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    env_file: db.env
+    volumes:
+      - kiwi_db:/var/lib/mysql
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  web:
+    image: {{ kiwi_image }}:{{ kiwi_image_tag }}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: web.env
+    volumes:
+      - kiwi_uploads:/Kiwi/uploads
+    cap_drop: [ALL]
+    networks: [backend, frontend]
+
+  caddy:
+    image: caddy:{{ caddy_image_tag }}
+    restart: unless-stopped
+    depends_on: [web]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [frontend]
+
+networks:
+  backend:
+    internal: true
+  frontend: {}
+
+volumes:
+  kiwi_db:
+  kiwi_uploads:
+  caddy_data:
+  caddy_config:
