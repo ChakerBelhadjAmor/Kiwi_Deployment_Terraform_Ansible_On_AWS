@@ -234,6 +234,9 @@ class KiwiRpcClient:
         )
         return plan["id"]
 
+    def set_plan_text(self, plan_id: int, text: str) -> None:
+        self.rpc.TestPlan.update(plan_id, {"text": text})
+
     def case_exists(self, plan_id: int, summary: str) -> bool:
         return bool(self.rpc.TestCase.filter({"plan": plan_id, "summary": summary}))
 
