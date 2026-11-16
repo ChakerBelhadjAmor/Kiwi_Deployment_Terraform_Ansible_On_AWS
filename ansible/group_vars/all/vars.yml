@@ -14,4 +14,4 @@ kiwi_backup_dir: /var/backups/kiwi
 kiwi_backup_keep_days: 7
 
 # true = Let's Encrypt STAGING (no rate limits, browser warning). Keep false for real use.
-caddy_acme_staging: false
+caddy_acme_staging: true

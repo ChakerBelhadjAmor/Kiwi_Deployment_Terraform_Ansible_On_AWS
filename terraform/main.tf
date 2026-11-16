@@ -74,7 +74,7 @@ resource "aws_vpc_security_group_ingress_rule" "ssh" {
 
 resource "aws_vpc_security_group_ingress_rule" "http" {
   security_group_id = aws_security_group.kiwi.id
-  description       = "HTTP (Let's Encrypt challenge and redirect to HTTPS)"
+  description       = "HTTP (LetsEncrypt challenge and redirect to HTTPS)"
   cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "tcp"
   from_port         = 80
@@ -92,7 +92,7 @@ resource "aws_vpc_security_group_ingress_rule" "https" {
 
 resource "aws_vpc_security_group_egress_rule" "all" {
   security_group_id = aws_security_group.kiwi.id
-  description       = "All outbound (apt, docker pulls, Let's Encrypt, DuckDNS)"
+  description       = "All outbound (apt, docker pulls, LetsEncrypt, DuckDNS)"
   cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "-1"
 }
@@ -103,12 +103,11 @@ resource "aws_key_pair" "admin" {
 }
 
 resource "aws_instance" "kiwi" {
-  ami                         = data.aws_ami.ubuntu.id
-  instance_type               = var.instance_type
-  subnet_id                   = aws_subnet.public.id
-  vpc_security_group_ids      = [aws_security_group.kiwi.id]
-  key_name                    = aws_key_pair.admin.key_name
-  associate_public_ip_address = false
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.public.id
+  vpc_security_group_ids = [aws_security_group.kiwi.id]
+  key_name               = aws_key_pair.admin.key_name
 
   metadata_options {
     http_endpoint = "enabled"
