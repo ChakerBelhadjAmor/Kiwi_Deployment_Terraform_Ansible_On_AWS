@@ -70,10 +70,28 @@
 
 - name: Harden sshd
   ansible.builtin.copy:
-    dest: /etc/ssh/sshd_config.d/99-hardening.conf
+    # sshd keeps the FIRST value it reads and includes drop-ins in lexical order,
+    # so this must sort before Ubuntu's 50-cloud-init.conf (PasswordAuthentication yes).
+    dest: /etc/ssh/sshd_config.d/00-hardening.conf
     content: |
       PasswordAuthentication no
       PermitRootLogin no
     mode: "0644"
     validate: "sshd -t -f %s"
   notify: Restart sshd
+
+- name: Apply sshd changes now
+  ansible.builtin.meta: flush_handlers
+
+- name: Read effective sshd settings
+  ansible.builtin.command:
+    cmd: sshd -T
+  register: common_sshd_effective
+  changed_when: false
+
+- name: Assert password login and root login are really disabled
+  ansible.builtin.assert:
+    that:
+      - "'passwordauthentication no' in common_sshd_effective.stdout"
+      - "'permitrootlogin no' in common_sshd_effective.stdout"
+    fail_msg: sshd hardening is overridden by another config file
