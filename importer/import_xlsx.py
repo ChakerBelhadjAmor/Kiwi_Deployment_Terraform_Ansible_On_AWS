@@ -17,11 +17,13 @@ Credentials come from ~/.tcms.conf (never from arguments or this repo).
 from __future__ import annotations
 
 import argparse
+import configparser
 import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
+from urllib.parse import urlparse
 
 import openpyxl
 
@@ -84,6 +86,22 @@ class KiwiClient(Protocol):
     def ensure_plan(self, product: str, plan_name: str) -> int: ...
     def case_exists(self, plan_id: int, summary: str) -> bool: ...
     def create_case(self, plan_id: int, row: TestCaseRow) -> None: ...
+
+
+LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
+
+
+def read_kiwi_url(conf: Path) -> str:
+    """URL from the tcms-api config file, or "" if absent."""
+    parser = configparser.ConfigParser()
+    if not parser.read(conf):
+        return ""
+    return parser.get("tcms", "url", fallback="")
+
+
+def insecure_tls_allowed(url: str) -> bool:
+    """Skipping certificate checks is only ever acceptable for a loopback server."""
+    return (urlparse(url).hostname or "") in LOOPBACK_HOSTS
 
 
 def _clean(value) -> str:
@@ -255,10 +273,14 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if os.environ.get("KIWI_INSECURE_TLS") == "1":  # LOCAL TESTING ONLY (self-signed cert)
+        url = read_kiwi_url(Path.home() / ".tcms.conf")
+        if not insecure_tls_allowed(url):
+            print(f"Refusing KIWI_INSECURE_TLS: {url or 'no url in ~/.tcms.conf'} is not a loopback address", file=sys.stderr)
+            return 2
         import ssl
 
         ssl._create_default_https_context = ssl._create_unverified_context
-        print("WARNING: TLS verification disabled", file=sys.stderr)
+        print("WARNING: TLS verification disabled (loopback server only)", file=sys.stderr)
 
     rows = [r for f in args.files for r in load_cases(f)]
     client = None if args.dry_run else KiwiRpcClient()

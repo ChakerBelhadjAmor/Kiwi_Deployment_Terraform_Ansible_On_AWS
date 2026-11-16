@@ -159,3 +159,29 @@ def test_import_cases_aborts_after_max_errors():
     rows = [TestCaseRow(f"CP-{i}", "Composant", "t", "Haute", "BF", "c", "d", "p", "q", "e") for i in range(50)]
     report = import_cases(rows, Down(), "Budget Tracker", dry_run=False, max_errors=3)
     assert report.errors == 3 and report.created == 0
+
+
+@pytest.mark.parametrize(
+    "url,allowed",
+    [
+        ("https://127.0.0.1:8443/xml-rpc/", True),
+        ("https://localhost:8443/xml-rpc/", True),
+        ("https://[::1]:8443/xml-rpc/", True),
+        ("https://qaproject.duckdns.org/xml-rpc/", False),
+        ("https://127.0.0.1.evil.example/xml-rpc/", False),
+        ("", False),
+    ],
+)
+def test_insecure_tls_only_allowed_for_loopback(url, allowed):
+    from import_xlsx import insecure_tls_allowed
+
+    assert insecure_tls_allowed(url) is allowed
+
+
+def test_read_kiwi_url_from_config(tmp_path):
+    from import_xlsx import read_kiwi_url
+
+    conf = tmp_path / "tcms.conf"
+    conf.write_text("[tcms]\nurl = https://127.0.0.1:8443/xml-rpc/\nusername = a\npassword = b\n")
+    assert read_kiwi_url(conf) == "https://127.0.0.1:8443/xml-rpc/"
+    assert read_kiwi_url(tmp_path / "missing.conf") == ""
