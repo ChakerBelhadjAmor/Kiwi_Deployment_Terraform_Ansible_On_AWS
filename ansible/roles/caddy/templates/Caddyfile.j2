@@ -11,6 +11,10 @@
 	respond @register "Registration is disabled" 403
 
 	reverse_proxy https://web:8443 {
+		# Caddy rewrites Host to the upstream (web:8443) for HTTPS upstreams, which makes
+		# Django's CSRF origin check fail with 403. Keep the browser's Host.
+		header_up Host {host}
+
 		transport http {
 			# Kiwi serves its own self-signed cert on the private Docker network.
 			tls_insecure_skip_verify
