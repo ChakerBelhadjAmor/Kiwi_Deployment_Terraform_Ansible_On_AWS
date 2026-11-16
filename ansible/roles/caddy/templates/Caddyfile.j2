@@ -1,3 +1,10 @@
+{% if caddy_acme_staging | bool %}
+{
+	# Staging CA: untrusted cert, but no rate limits. Use while iterating.
+	acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+{% endif %}
 {{ vault_duckdns_subdomain }}.duckdns.org {
 	# Self-registration is disabled: accounts are created by the admin only.
 	@register path /accounts/register/*

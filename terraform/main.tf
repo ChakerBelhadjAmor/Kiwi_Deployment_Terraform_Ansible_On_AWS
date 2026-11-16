@@ -123,6 +123,11 @@ resource "aws_instance" "kiwi" {
   }
 
   tags = { Name = "${var.project_tag}-vm" }
+
+  lifecycle {
+    # A newer Ubuntu AMI must never recreate the VM (data lives on its disk).
+    ignore_changes = [ami]
+  }
 }
 
 resource "aws_eip" "kiwi" {

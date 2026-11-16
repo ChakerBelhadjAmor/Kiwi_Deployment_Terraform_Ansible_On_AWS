@@ -41,6 +41,12 @@
     opts: sw
     state: present
 
+- name: Prefer RAM over swap
+  ansible.posix.sysctl:
+    name: vm.swappiness
+    value: "10"
+    state: present
+
 - name: Enable automatic security upgrades
   ansible.builtin.copy:
     dest: /etc/apt/apt.conf.d/20auto-upgrades

@@ -109,3 +109,43 @@ def test_import_cases_counts_errors_and_continues():
     rows = [TestCaseRow(i, "Composant", "t", "Haute", "BF", "c", "d", "p", "q", "e") for i in ("CP-01", "CP-02")]
     report = import_cases(rows, Boom(), "Budget Tracker", dry_run=False)
     assert report == ImportReport(created=1, skipped=0, errors=1)
+
+
+class FakeRpc:
+    """Records Kiwi RPC calls; the case exists globally but is not linked to the plan."""
+
+    def __init__(self, case_in_plan=False):
+        from types import SimpleNamespace as NS
+
+        self.calls = []
+        rec = lambda name, ret: (lambda *a, **k: (self.calls.append((name, a)), ret)[1])
+        self.Category = NS(filter=rec("Category.filter", [{"id": 1}]))
+        self.Priority = NS(filter=rec("Priority.filter", [{"id": 2}]))
+        self.TestCaseStatus = NS(filter=rec("Status.filter", [{"id": 3}]))
+
+        def case_filter(query):
+            self.calls.append(("TestCase.filter", (query,)))
+            if "plan" in query:
+                return [{"id": 99}] if case_in_plan else []
+            return [{"id": 99}]
+
+        self.TestCase = NS(
+            filter=case_filter,
+            create=rec("TestCase.create", {"id": 100}),
+            add_tag=rec("TestCase.add_tag", None),
+        )
+        self.TestPlan = NS(add_case=rec("TestPlan.add_case", None))
+
+
+def test_create_case_reuses_orphan_and_links_it_to_plan():
+    from import_xlsx import KiwiRpcClient
+
+    rpc = FakeRpc()
+    client = KiwiRpcClient(rpc=rpc)
+    client._product = {"id": 7, "name": "Budget Tracker"}
+    row = TestCaseRow("CP-01", "Composant", "t", "Haute", "BF-01", "c", "d", "p", "q", "e")
+    client.create_case(5, row)
+    names = [c[0] for c in rpc.calls]
+    assert "TestCase.create" not in names  # no duplicate
+    assert ("TestPlan.add_case", (5, 99)) in rpc.calls
+    assert ("TestCase.add_tag", (99, "BF-01")) in rpc.calls

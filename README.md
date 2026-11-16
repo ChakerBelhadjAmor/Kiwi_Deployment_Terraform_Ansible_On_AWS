@@ -38,7 +38,19 @@ ansible-playbook site.yml                        # 2nd run must report changed=0
 Open `https://<your-subdomain>.duckdns.org` and log in as the vault admin user.
 Registration is disabled; create the 3 user accounts in the Kiwi admin.
 
-If your own IP changes: edit `admin_cidr` in `terraform.tfvars` and `terraform apply`.
+If your own IP changes (`curl -s ifconfig.me`): edit `admin_cidr` in `terraform.tfvars` and
+`terraform apply`; or, in a hurry, `aws ec2 authorize-security-group-ingress` for port 22.
+After a rebuild the SSH host key changes: `ssh-keygen -R <ip>`.
+
+**Let's Encrypt limits:** while iterating set `caddy_acme_staging: true` in
+`ansible/group_vars/all/vars.yml` (no rate limits, browser warning), then flip to `false` once.
+Do not delete the `kiwi_caddy_data` volume casually: re-issuing the cert repeatedly hits the limit.
+
+**After the first good deploy:** pin the Kiwi image. Run
+`ssh ... docker inspect --format '{{index .RepoDigests 0}}' pub.kiwitcms.eu/kiwitcms/kiwitcms:latest`
+and set `kiwi_image_tag` to `latest@sha256:...` style digest in `vars.yml`.
+On the first run check `docker compose exec web /Kiwi/manage.py shell -c "from django.conf import settings as s; print(s.SECRET_KEY[:4])"`:
+it must NOT be the image default (confirm `KIWI_SECRET_KEY` is honoured).
 
 ## 3. Import the test cases
 
@@ -73,7 +85,8 @@ docker compose -f local/docker-compose.yml down -v
 
 `curl -sI http://<host>` redirects to HTTPS; the certificate is valid; only 22 (your IP),
 80, 443 are reachable; `ssh ... free -m` shows swap; a reboot brings the site back.
-A database dump runs daily at 02:30 into `/var/backups/kiwi` (7 days kept):
+A backup (DB dump + uploads + Caddy cert volume) runs daily at 02:30 into `/var/backups/kiwi` (7 days kept,
+on the same disk: `scp` it to your machine before teardown):
 `ssh ... sudo /usr/local/sbin/kiwi-backup.sh`.
 
 ## 5. Teardown (end of the month)

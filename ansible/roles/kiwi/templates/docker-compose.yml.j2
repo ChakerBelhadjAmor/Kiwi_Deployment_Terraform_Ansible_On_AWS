@@ -1,9 +1,14 @@
 # Managed by Ansible. Only Caddy publishes ports.
+name: kiwi
+
 services:
   db:
     image: mariadb:{{ mariadb_image_tag }}
     restart: unless-stopped
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    command: >-
+      --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=256M --max-connections=30
+    mem_limit: 512m
     env_file: db.env
     volumes:
       - kiwi_db:/var/lib/mysql
@@ -24,6 +29,7 @@ services:
     volumes:
       - kiwi_uploads:/Kiwi/uploads
     cap_drop: [ALL]
+    mem_limit: 900m
     networks: [backend, frontend]
 
   caddy:

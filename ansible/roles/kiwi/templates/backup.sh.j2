@@ -1,8 +1,21 @@
-#!/bin/sh
-# Daily Kiwi database dump; keeps {{ kiwi_backup_keep_days }} days.
-set -eu
+#!/bin/bash
+# Daily Kiwi backup: DB dump plus the uploads and Caddy cert volumes.
+# Keeps {{ kiwi_backup_keep_days }} days. Copy {{ kiwi_backup_dir }} off the VM yourself (scp);
+# no cloud credentials are stored here.
+set -euo pipefail
 cd {{ kiwi_dir }}
-out="{{ kiwi_backup_dir }}/kiwi-$(date +%F-%H%M).sql.gz"
-docker compose exec -T db sh -c 'mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" --single-transaction kiwi' | gzip > "$out"
-chmod 600 "$out"
-find {{ kiwi_backup_dir }} -name 'kiwi-*.sql.gz' -mtime +{{ kiwi_backup_keep_days }} -delete
+stamp=$(date +%F-%H%M)
+dir={{ kiwi_backup_dir }}
+
+tmp="$dir/.kiwi-$stamp.sql.gz.tmp"
+docker compose exec -T db sh -c 'mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" --single-transaction kiwi' | gzip > "$tmp"
+gzip -t "$tmp"
+[ "$(stat -c %s "$tmp")" -gt 1024 ] || { echo "dump suspiciously small" >&2; rm -f "$tmp"; exit 1; }
+mv "$tmp" "$dir/kiwi-$stamp.sql.gz"
+
+for vol in kiwi_uploads kiwi_caddy_data; do
+  docker run --rm -v "$vol":/data:ro -v "$dir":/out alpine tar -czf "/out/$vol-$stamp.tar.gz" -C /data .
+done
+
+chmod 600 "$dir"/*-"$stamp"*
+find "$dir" -name '*.gz' -mtime +{{ kiwi_backup_keep_days }} -delete

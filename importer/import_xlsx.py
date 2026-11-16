@@ -157,10 +157,12 @@ def import_cases(rows: list[TestCaseRow], client: KiwiClient, product: str, dry_
 class KiwiRpcClient:
     """Thin adapter over tcms_api.TCMS (credentials from ~/.tcms.conf)."""
 
-    def __init__(self) -> None:
-        from tcms_api import TCMS
+    def __init__(self, rpc=None) -> None:
+        if rpc is None:
+            from tcms_api import TCMS
 
-        self.rpc = TCMS().exec
+            rpc = TCMS().exec
+        self.rpc = rpc
         self._product: dict | None = None
         self._category: int | None = None
 
@@ -213,23 +215,30 @@ class KiwiRpcClient:
 
     def create_case(self, plan_id: int, row: TestCaseRow) -> None:
         prod = self._product
-        if self._category is None:
-            self._category = self.rpc.Category.filter({"product": prod["id"]})[0]["id"]
-        priority = self.rpc.Priority.filter({"value": row.kiwi_priority})[0]["id"]
-        status = self.rpc.TestCaseStatus.filter({"name": "CONFIRMED"})[0]["id"]
-        case = self.rpc.TestCase.create(
-            {
-                "summary": row.summary,
-                "text": row.text,
-                "category": self._category,
-                "priority": priority,
-                "case_status": status,
-                "product": prod["id"],
-            }
-        )
-        self.rpc.TestPlan.add_case(plan_id, case["id"])
+        # A previous run may have created the case but failed before linking it
+        # to the plan: reuse it instead of creating a duplicate.
+        found = self.rpc.TestCase.filter({"summary": row.summary, "category__product": prod["id"]})
+        if found:
+            case_id = found[0]["id"]
+        else:
+            if self._category is None:
+                self._category = self.rpc.Category.filter({"product": prod["id"]})[0]["id"]
+            priority = self.rpc.Priority.filter({"value": row.kiwi_priority})[0]["id"]
+            status = self.rpc.TestCaseStatus.filter({"name": "CONFIRMED"})[0]["id"]
+            case_id = self.rpc.TestCase.create(
+                {
+                    "summary": row.summary,
+                    "text": row.text,
+                    "category": self._category,
+                    "priority": priority,
+                    "case_status": status,
+                    "product": prod["id"],
+                }
+            )["id"]
+        if not self.rpc.TestCase.filter({"plan": plan_id, "id": case_id}):
+            self.rpc.TestPlan.add_case(plan_id, case_id)
         if row.requirement:
-            self.rpc.TestCase.add_tag(case["id"], row.requirement)
+            self.rpc.TestCase.add_tag(case_id, row.requirement)
 
 
 def main(argv: list[str] | None = None) -> int:

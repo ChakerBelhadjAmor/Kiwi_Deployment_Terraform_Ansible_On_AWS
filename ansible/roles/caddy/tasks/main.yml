@@ -59,4 +59,4 @@
     src: Caddyfile.j2
     dest: "{{ kiwi_dir }}/Caddyfile"
     mode: "0644"
-  no_log: true
+  notify: Reload Caddy

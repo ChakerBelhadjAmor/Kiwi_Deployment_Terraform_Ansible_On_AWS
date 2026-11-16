@@ -79,3 +79,8 @@ backups/
 # Ansible tool caches
 .ansible/
 .cache/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/

@@ -37,6 +37,16 @@
   register: kiwi_migrate
   changed_when: "'Applying' in kiwi_migrate.stdout"
 
+- name: Check Kiwi really uses MariaDB (not SQLite)
+  ansible.builtin.command:
+    cmd: >-
+      docker compose exec -T web /Kiwi/manage.py shell -c
+      "from django.conf import settings as s; print(s.DATABASES['default']['ENGINE'])"
+    chdir: "{{ kiwi_dir }}"
+  register: kiwi_engine
+  changed_when: false
+  failed_when: "'mysql' not in kiwi_engine.stdout"
+
 - name: Create the admin user if missing
   ansible.builtin.command:
     argv:
@@ -61,8 +71,14 @@
         from django.contrib.auth import get_user_model
         U = get_user_model()
         name = os.environ["KIWI_ADMIN_USER"]
-        if U.objects.filter(username=name).exists():
-            print("exists")
+        user = U.objects.filter(username=name).first()
+        if user:
+            if user.check_password(os.environ["KIWI_ADMIN_PASSWORD"]):
+                print("exists")
+            else:
+                user.set_password(os.environ["KIWI_ADMIN_PASSWORD"])
+                user.save()
+                print("created: password updated")
         else:
             U.objects.create_superuser(name, os.environ["KIWI_ADMIN_EMAIL"], os.environ["KIWI_ADMIN_PASSWORD"])
             print("created")
@@ -83,6 +99,22 @@
   until: kiwi_http.status in [200, 302]
   retries: 30
   delay: 10
+  changed_when: false
+  no_log: true
+
+- name: Set the Kiwi site domain
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - exec
+      - -T
+      - web
+      - /Kiwi/manage.py
+      - shell
+      - -c
+      - "from django.contrib.sites.models import Site; Site.objects.update(domain='{{ vault_duckdns_subdomain }}.duckdns.org', name='Kiwi TCMS')"
+    chdir: "{{ kiwi_dir }}"
   changed_when: false
   no_log: true
 
