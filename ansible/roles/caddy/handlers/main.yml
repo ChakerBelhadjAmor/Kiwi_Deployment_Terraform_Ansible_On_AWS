@@ -1,7 +1,10 @@
 ---
+# The Caddyfile is bind-mounted as a single file. Ansible replaces it (new inode),
+# so a running container keeps seeing the old one and `caddy reload` is a no-op.
+# Recreating the container re-binds the new file; certs persist in the caddy_data volume.
 - name: Reload Caddy
   ansible.builtin.command:
-    cmd: docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile
+    cmd: docker compose up -d --force-recreate caddy
     chdir: "{{ kiwi_dir }}"
   changed_when: true
-  failed_when: false  # container may not exist yet on the very first run
+  failed_when: false  # compose project may not exist yet on the very first run
