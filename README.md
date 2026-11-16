@@ -42,8 +42,10 @@ If your own IP changes (`curl -s ifconfig.me`): edit `admin_cidr` in `terraform.
 `terraform apply`; or, in a hurry, `aws ec2 authorize-security-group-ingress` for port 22.
 After a rebuild the SSH host key changes: `ssh-keygen -R <ip>`.
 
-**Let's Encrypt limits:** while iterating set `caddy_acme_staging: true` in
-`ansible/group_vars/all/vars.yml` (no rate limits, browser warning), then flip to `false` once.
+**Let's Encrypt limits:** for a first run use the staging CA per run (no rate limits, browser
+warning, never committed): `ansible-playbook site.yml -e caddy_acme_staging=true`. Then run the
+playbook again without the flag to get the real certificate (see the cert reset note in step 7 of the
+walkthrough: delete `/data/caddy/certificates` in the Caddy container and restart it).
 Do not delete the `kiwi_caddy_data` volume casually: re-issuing the cert repeatedly hits the limit.
 
 **After the first good deploy:** pin the Kiwi image. Run

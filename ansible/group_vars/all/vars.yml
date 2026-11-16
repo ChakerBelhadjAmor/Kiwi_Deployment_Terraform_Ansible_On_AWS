@@ -13,5 +13,5 @@ kiwi_dir: /opt/kiwi
 kiwi_backup_dir: /var/backups/kiwi
 kiwi_backup_keep_days: 7
 
-# true = Let's Encrypt STAGING (no rate limits, browser warning). Keep false for real use.
-caddy_acme_staging: true
+# Production by default. For a first run use staging via: ansible-playbook site.yml -e caddy_acme_staging=true
+caddy_acme_staging: false
