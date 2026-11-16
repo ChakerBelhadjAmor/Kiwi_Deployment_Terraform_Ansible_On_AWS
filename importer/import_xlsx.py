@@ -36,6 +36,8 @@ PLAN_TYPE_MAP = {
     "systeme": "System",
     "scénarios": "Acceptance",
     "scenarios": "Acceptance",
+    "besoin fonctionnel": "Product",
+    "besoin non fonctionnel": "Product",
 }
 SUMMARY_MAX = 255
 
@@ -213,7 +215,7 @@ class KiwiRpcClient:
         return self.rpc.Version.create({"product": product_id, "value": "unspecified"})["id"]
 
     def _plan_type_id(self, plan_name: str) -> int:
-        wanted = PLAN_TYPE_MAP.get(plan_name.lower(), "Functionality")
+        wanted = PLAN_TYPE_MAP.get(plan_name.lower(), "Function")
         found = self.rpc.PlanType.filter({"name": wanted}) or self.rpc.PlanType.filter({})
         return found[0]["id"]
 

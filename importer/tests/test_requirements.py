@@ -37,3 +37,11 @@ def test_kiwi_client_set_plan_text_updates_the_plan():
     rpc = NS(TestPlan=NS(update=lambda pid, vals: seen.append((pid, vals))))
     KiwiRpcClient(rpc=rpc).set_plan_text(7, "texte")
     assert seen == [(7, {"text": "texte"})]
+
+
+def test_requirements_plans_get_the_product_type_not_an_arbitrary_one():
+    types = [{"id": 1, "name": "Unit"}, {"id": 8, "name": "Product"}]
+    rpc = NS(PlanType=NS(filter=lambda q: [t for t in types if t["name"] == q["name"]] if q else types))
+    client = KiwiRpcClient(rpc=rpc)
+    assert client._plan_type_id("Besoin fonctionnel") == 8
+    assert client._plan_type_id("Besoin non fonctionnel") == 8
