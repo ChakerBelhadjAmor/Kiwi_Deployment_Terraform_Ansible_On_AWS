@@ -14,6 +14,6 @@ resource "local_file" "ansible_inventory" {
   file_permission = "0600"
   content         = <<-EOT
     [kiwi]
-    kiwi ansible_host=${aws_eip.kiwi.public_ip} ansible_user=ubuntu
+    kiwi-vm ansible_host=${aws_eip.kiwi.public_ip} ansible_user=ubuntu
   EOT
 }
