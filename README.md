@@ -9,8 +9,8 @@ keys, `~/.tcms.conf`. `.gitignore` covers them; `git status` must stay clean of 
 
 ## Prerequisites
 
-`terraform`, `ansible` (+ `ansible-galaxy collection install -r ansible/requirements.yml`),
-AWS CLI v2 logged in via SSO (`aws configure sso`, `export AWS_PROFILE=...`),
+`terraform` >= 1.10, `ansible` (+ `ansible-galaxy collection install -r ansible/requirements.yml`),
+AWS CLI v2 with credentials for your profile (`export AWS_PROFILE=kiwi`; SSO or access keys both work),
 Docker (for the local importer test), Python 3 with `pip install -r importer/requirements.txt`.
 
 ## 1. One-time setup
@@ -112,4 +112,36 @@ cd terraform && terraform plan -destroy && terraform destroy
 ```
 
 Check the EC2, VPC and Billing consoles are empty. Delete the DuckDNS subdomain at duckdns.org.
-Keep `terraform.tfstate` until `destroy` finishes.
+The state lives in S3 (see below), so you can destroy from any machine.
+
+## 6. State and destroy
+
+Terraform state is stored in a versioned, encrypted S3 bucket (`kiwi-tfstate-<account-id>`, key
+`kiwi/terraform.tfstate`, native S3 locking). It is created once by `terraform/bootstrap/`, which keeps
+its own small local state: keep a copy of `terraform/bootstrap/terraform.tfstate` somewhere safe.
+The bucket is not part of the Kiwi stack, so `terraform destroy` never removes it.
+
+Destroy from a fresh machine (needs your `terraform.tfvars`, AWS credentials for the same account):
+
+```sh
+git clone <repo> && cd <repo>/terraform
+cp /path/to/terraform.tfvars .
+export AWS_PROFILE=kiwi
+terraform init            # connects to the S3 backend
+terraform plan -destroy && terraform destroy
+```
+
+Restore an older state version (old versions expire after 365 days):
+
+```sh
+B=kiwi-tfstate-<account-id>
+aws s3api list-object-versions --bucket $B --prefix kiwi/terraform.tfstate --query 'Versions[].[VersionId,LastModified]' --output text
+aws s3api get-object --bucket $B --key kiwi/terraform.tfstate --version-id <id> old.tfstate
+terraform state push old.tfstate     # review first with: terraform show old.tfstate
+```
+
+## CI
+
+`.github/workflows/ci.yml` runs on every PR and push to `main`: `terraform fmt`/`validate` (no backend, no AWS),
+`ansible-lint` + syntax-check, importer tests, and gitleaks. `main` is protected by a ruleset: PR required,
+those four checks must pass, no force-push.
