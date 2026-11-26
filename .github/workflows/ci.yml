@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: hashicorp/setup-terraform@v3.1.2
+        with:
+          terraform_version: "~1.10"
+      - name: fmt
+        run: terraform fmt -check -recursive
+        working-directory: terraform
+      - name: validate
+        working-directory: terraform
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+  ansible:
+    runs-on: ubuntu-latest
+    env:
+      # ansible.cfg points at files that only exist on the operator's laptop.
+      ANSIBLE_VAULT_PASSWORD_FILE: ${{ github.workspace }}/.ci-vault-pass
+      ANSIBLE_PRIVATE_KEY_FILE: ${{ github.workspace }}/.ci-no-key
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5.3.0
+        with:
+          python-version: "3.12"
+      - run: pip install ansible-core ansible-lint
+      - run: ansible-galaxy collection install -r ansible/requirements.yml
+      - name: Throwaway vault (never committed)
+        run: |
+          echo ci > .ci-vault-pass
+          cp ansible/group_vars/all/vault.yml.example ansible/group_vars/all/vault.yml
+      - name: lint
+        run: ansible-lint site.yml
+        working-directory: ansible
+      - name: syntax-check
+        run: ansible-playbook site.yml --syntax-check -i localhost,
+        working-directory: ansible
+
+  importer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5.3.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: importer/requirements.txt
+      - run: pip install -r requirements.txt
+        working-directory: importer
+      - run: pytest
+        working-directory: importer
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
