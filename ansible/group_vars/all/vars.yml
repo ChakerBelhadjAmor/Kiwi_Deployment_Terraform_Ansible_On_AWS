@@ -26,3 +26,9 @@ kiwi_aws_cli_image: amazon/aws-cli:2.27.0
 # without an explicit name, so `kiwi_uploads` becomes `kiwi_kiwi_uploads`.
 kiwi_uploads_volume: kiwi_kiwi_uploads
 kiwi_caddy_volume: kiwi_caddy_data
+
+# Optional separate EBS disk for MariaDB (terraform output `data_volume_id`).
+# Empty = data stays on the root disk. Migrate first: README "Separate data disk".
+kiwi_data_volume_id: ""
+kiwi_db_volume: kiwi_kiwi_db
+kiwi_db_mountpoint: "/var/lib/docker/volumes/{{ kiwi_db_volume }}/_data"

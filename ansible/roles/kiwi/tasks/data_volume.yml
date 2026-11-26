@@ -1,0 +1,50 @@
+---
+# Mounts the optional EBS data disk over the MariaDB volume's data directory.
+# Runs only when kiwi_data_volume_id is set. See README "Separate data disk".
+- name: Find the data disk by its EBS volume id
+  ansible.builtin.stat:
+    path: "/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_{{ kiwi_data_volume_id | replace('-', '') }}"
+  register: kiwi_data_dev
+  until: kiwi_data_dev.stat.exists
+  retries: 12
+  delay: 5
+
+- name: Fail if the data disk is not attached
+  ansible.builtin.assert:
+    that: kiwi_data_dev.stat.exists
+    fail_msg: "EBS volume {{ kiwi_data_volume_id }} is not attached to this host"
+
+- name: Create the MariaDB volume with compose labels
+  community.docker.docker_volume:
+    name: "{{ kiwi_db_volume }}"
+    labels:
+      com.docker.compose.project: kiwi
+      com.docker.compose.volume: kiwi_db
+
+- name: Look at the volume data directory
+  ansible.builtin.find:
+    paths: "{{ kiwi_db_mountpoint }}"
+    file_type: any
+  register: kiwi_db_existing
+
+- name: Refuse to hide existing database files behind the new disk
+  ansible.builtin.assert:
+    that: >-
+      kiwi_db_existing.matched == 0 or
+      (ansible_facts['mounts'] | selectattr('mount', 'equalto', kiwi_db_mountpoint) | list | length > 0)
+    fail_msg: >-
+      {{ kiwi_db_mountpoint }} already holds database files and the data disk is not mounted there.
+      Migrate first (README, "Separate data disk"); mounting now would hide your data.
+
+- name: Create a filesystem on the data disk (no-op if it already has one)
+  community.general.filesystem:
+    fstype: ext4
+    dev: "{{ kiwi_data_dev.stat.lnk_source }}"
+
+- name: Mount the data disk on the MariaDB volume directory
+  ansible.posix.mount:
+    src: "{{ kiwi_data_dev.stat.lnk_source }}"
+    path: "{{ kiwi_db_mountpoint }}"
+    fstype: ext4
+    opts: defaults,nofail
+    state: mounted

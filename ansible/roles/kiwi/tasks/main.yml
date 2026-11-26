@@ -1,4 +1,8 @@
 ---
+- name: Set up the optional data disk
+  ansible.builtin.include_tasks: data_volume.yml
+  when: kiwi_data_volume_id | length > 0
+
 - name: Create backup directory
   ansible.builtin.file:
     path: "{{ kiwi_backup_dir }}"
