@@ -120,6 +120,8 @@ resource "aws_instance" "kiwi" {
     volume_size           = 30
     encrypted             = true
     delete_on_termination = true
+
+    tags = { Snapshot = "daily" } # picked up by the DLM policy in snapshots.tf
   }
 
   tags = { Name = "${var.project_tag}-vm" }
