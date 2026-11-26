@@ -6,3 +6,6 @@ AVD-AWS-0104
 # Buckets use SSE-S3 (AES256). A customer-managed KMS key costs about $1/month per key and
 # adds no protection against the threats here (no cross-account access, public access blocked).
 AVD-AWS-0132
+# The alerts topic carries only alarm names and states. CloudWatch cannot publish to a topic encrypted with the
+# AWS-managed key (alias/aws/sns); that needs a customer-managed key (about $1/month), the same trade-off as AWS-0132.
+AVD-AWS-0095
