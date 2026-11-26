@@ -21,3 +21,8 @@ caddy_acme_staging: false
 # Empty = local backups only.
 kiwi_backup_bucket: ""
 kiwi_aws_cli_image: amazon/aws-cli:2.27.0
+
+# Docker volume names. Compose prefixes the project name (`kiwi`) to volumes
+# without an explicit name, so `kiwi_uploads` becomes `kiwi_kiwi_uploads`.
+kiwi_uploads_volume: kiwi_kiwi_uploads
+kiwi_caddy_volume: kiwi_caddy_data

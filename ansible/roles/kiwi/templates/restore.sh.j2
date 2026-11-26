@@ -1,0 +1,39 @@
+#!/bin/bash
+# Restore Kiwi from one backup set. Usage:
+#   kiwi-restore.sh <STAMP> [BACKUP_DIR]
+# STAMP is the timestamp in the file names, e.g. 2026-11-26-0230.
+# Expects {{ kiwi_backup_dir }}/kiwi-<STAMP>.sql.gz, kiwi_uploads-<STAMP>.tar.gz
+# and kiwi_caddy_data-<STAMP>.tar.gz. Fetch them from S3 first if the VM is new:
+#   aws s3 cp s3://<bucket>/<STAMP>/ {{ kiwi_backup_dir }}/ --recursive
+# DESTRUCTIVE: replaces the current database and uploads. Asks before it starts.
+set -euo pipefail
+
+stamp=${1:?usage: kiwi-restore.sh <STAMP> [BACKUP_DIR]}
+dir=${2:-{{ kiwi_backup_dir }}}
+cd {{ kiwi_dir }}
+
+for f in "kiwi-$stamp.sql.gz" "kiwi_uploads-$stamp.tar.gz" "kiwi_caddy_data-$stamp.tar.gz"; do
+  [ -s "$dir/$f" ] || { echo "missing or empty: $dir/$f" >&2; exit 1; }
+done
+gzip -t "$dir/kiwi-$stamp.sql.gz"
+
+printf 'This REPLACES the Kiwi database and uploads with backup %s. Type yes: ' "$stamp"
+read -r answer
+[ "$answer" = yes ] || { echo aborted; exit 1; }
+
+docker compose up -d db
+until docker compose exec -T db healthcheck.sh --connect --innodb_initialized >/dev/null 2>&1; do sleep 3; done
+docker compose stop web caddy
+
+docker compose exec -T db sh -c 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -e "DROP DATABASE IF EXISTS kiwi; CREATE DATABASE kiwi CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"'
+gunzip -c "$dir/kiwi-$stamp.sql.gz" | docker compose exec -T db sh -c 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" kiwi'
+
+for pair in kiwi_uploads={{ kiwi_uploads_volume }} kiwi_caddy_data={{ kiwi_caddy_volume }}; do
+  name=${pair%%=*}
+  vol=${pair#*=}
+  docker volume inspect "$vol" >/dev/null
+  docker run --rm -v "$vol":/data -v "$dir":/in:ro alpine sh -c "rm -rf /data/* /data/.[!.]* 2>/dev/null; tar -xzf /in/$name-$stamp.tar.gz -C /data"
+done
+
+docker compose up -d
+echo "restored backup $stamp"

@@ -126,6 +126,14 @@
     group: root
     mode: "0750"
 
+- name: Install restore script
+  ansible.builtin.template:
+    src: restore.sh.j2
+    dest: /usr/local/sbin/kiwi-restore.sh
+    owner: root
+    group: root
+    mode: "0750"
+
 - name: Schedule the daily backup
   ansible.builtin.cron:
     name: kiwi database backup

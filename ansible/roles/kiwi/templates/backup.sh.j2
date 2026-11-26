@@ -14,8 +14,12 @@ gzip -t "$tmp"
 [ "$(stat -c %s "$tmp")" -gt 1024 ] || { echo "dump suspiciously small" >&2; rm -f "$tmp"; exit 1; }
 mv "$tmp" "$dir/kiwi-$stamp.sql.gz"
 
-for vol in kiwi_uploads kiwi_caddy_data; do
-  docker run --rm -v "$vol":/data:ro -v "$dir":/out alpine tar -czf "/out/$vol-$stamp.tar.gz" -C /data .
+# archive-name=docker-volume-name (compose prefixes the project name to volumes)
+for pair in kiwi_uploads={{ kiwi_uploads_volume }} kiwi_caddy_data={{ kiwi_caddy_volume }}; do
+  name=${pair%%=*}
+  vol=${pair#*=}
+  docker volume inspect "$vol" >/dev/null   # fail loudly instead of archiving a fresh empty volume
+  docker run --rm -v "$vol":/data:ro -v "$dir":/out alpine tar -czf "/out/$name-$stamp.tar.gz" -C /data .
 done
 
 chmod 600 "$dir"/*-"$stamp"*
