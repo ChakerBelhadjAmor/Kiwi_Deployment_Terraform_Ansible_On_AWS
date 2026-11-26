@@ -1,0 +1,101 @@
+title Kiwi TCMS on AWS - release v2.0.0
+direction right
+
+// People and outside services
+Testers [icon: users]
+Alert email [icon: mail]
+DuckDNS [icon: globe]
+Lets Encrypt [icon: lock]
+
+// Code hosting and checks
+GitHub [icon: github] {
+  CI checks [icon: github]
+  Trivy scan [icon: shield]
+  Gitleaks [icon: shield]
+  Dependabot [icon: github]
+}
+
+// Everything that runs on the operator's own machine
+Operator laptop [icon: laptop] {
+  Terraform [icon: terraform]
+  Ansible [icon: ansible]
+  Importer [icon: python]
+  AWS CLI [icon: aws]
+}
+
+AWS eu-north-1 [icon: aws] {
+
+  // Buckets that outlive the Kiwi stack (terraform/bootstrap)
+  Long lived buckets [icon: aws-s3] {
+    State bucket [icon: aws-s3]
+    Backups bucket [icon: aws-s3]
+    Access logs bucket [icon: aws-s3]
+  }
+
+  Monitoring [icon: aws-cloudwatch] {
+    CloudWatch alarms [icon: aws-cloudwatch]
+    SNS alerts topic [icon: aws-sns]
+  }
+
+  Budget alert [icon: aws-budgets]
+  Systems Manager [icon: aws-systems-manager]
+  Snapshot policy [icon: aws-ebs]
+  Instance role [icon: aws-iam]
+
+  VPC [icon: aws-vpc] {
+    Internet gateway [icon: aws-internet-gateway]
+    Public subnet [icon: aws-vpc] {
+      Security group [icon: aws-vpc] {
+        EC2 t3 small [icon: aws-ec2] {
+          Caddy [icon: docker]
+          Kiwi web [icon: docker]
+          MariaDB [icon: database]
+          Local backup copy [icon: aws-ebs]
+        }
+        Root disk [icon: aws-ebs]
+        Optional data disk [icon: aws-ebs]
+      }
+    }
+  }
+  Elastic IP [icon: aws-ec2]
+}
+
+// Traffic from users
+Testers > Elastic IP: HTTPS 443
+Elastic IP > Internet gateway
+Internet gateway > Caddy
+Caddy > Kiwi web: HTTPS 8443 internal
+Kiwi web > MariaDB: MySQL 3306 backend network
+Caddy > Lets Encrypt: certificate
+EC2 t3 small > DuckDNS: keeps the name pointed at the IP
+
+// Backups and recovery
+MariaDB > Local backup copy: nightly dump
+Local backup copy > Backups bucket: upload with write only role
+Instance role > EC2 t3 small: attached
+Snapshot policy > Root disk: daily snapshot kept 7 days
+MariaDB > Optional data disk: database files when enabled
+
+// Access without an open SSH port
+AWS CLI > Systems Manager: start session
+Systems Manager > EC2 t3 small: shell or SSH tunnel
+Ansible > EC2 t3 small: configures over SSM or SSH
+
+// Monitoring
+EC2 t3 small > CloudWatch alarms: status and CPU metrics
+CloudWatch alarms > EC2 t3 small: auto recover on host failure
+CloudWatch alarms > SNS alerts topic
+SNS alerts topic > Alert email
+Budget alert > Alert email: spend at 80 and 100 percent
+
+// State, logging and operator tooling
+Terraform > State bucket: remote state
+State bucket > Access logs bucket: access logs
+Backups bucket > Access logs bucket: access logs
+Terraform > VPC: provisions
+Importer > Caddy: XML-RPC import of test cases
+
+// Repository checks (no AWS access)
+Dependabot > CI checks: update pull requests
+CI checks > Trivy scan
+CI checks > Gitleaks

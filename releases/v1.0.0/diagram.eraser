@@ -1,0 +1,53 @@
+title Kiwi TCMS on AWS - release v1.0.0
+direction right
+
+// People and outside services
+Testers [icon: users]
+DuckDNS [icon: globe]
+Lets Encrypt [icon: lock]
+GitHub Actions [icon: github]
+
+// Everything that runs on the operator's own machine
+Operator laptop [icon: laptop] {
+  Terraform [icon: terraform]
+  Ansible [icon: ansible]
+  Importer [icon: python]
+}
+
+AWS eu-north-1 [icon: aws] {
+  State bucket [icon: aws-s3]
+  Budget alert [icon: aws-budgets]
+
+  VPC [icon: aws-vpc] {
+    Internet gateway [icon: aws-internet-gateway]
+    Public subnet [icon: aws-vpc] {
+      Security group [icon: aws-vpc] {
+        EC2 t3 small [icon: aws-ec2] {
+          Caddy [icon: docker]
+          Kiwi web [icon: docker]
+          MariaDB [icon: database]
+          Local backups [icon: aws-ebs]
+        }
+      }
+    }
+  }
+  Elastic IP [icon: aws-ec2]
+}
+
+// Traffic from users
+Testers > Elastic IP: HTTPS 443
+Elastic IP > Internet gateway
+Internet gateway > Caddy
+Caddy > Kiwi web: HTTPS 8443 internal
+Kiwi web > MariaDB: MySQL 3306 backend network
+MariaDB > Local backups: nightly dump
+Caddy > Lets Encrypt: certificate
+EC2 t3 small > DuckDNS: keeps the name pointed at the IP
+
+// Operator tooling
+Terraform > VPC: provisions
+Terraform > State bucket: remote state
+Ansible > EC2 t3 small: configures over SSH 22 from the admin IP only
+Importer > Caddy: XML-RPC import of test cases
+Budget alert > Operator laptop: email at 80 and 100 percent
+GitHub Actions > Terraform: fmt and validate only, no AWS access
