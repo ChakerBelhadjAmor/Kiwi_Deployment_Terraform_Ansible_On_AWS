@@ -48,9 +48,12 @@ playbook again without the flag to get the real certificate (see the cert reset 
 walkthrough: delete `/data/caddy/certificates` in the Caddy container and restart it).
 Do not delete the `kiwi_caddy_data` volume casually: re-issuing the cert repeatedly hits the limit.
 
-**After the first good deploy:** pin the Kiwi image. Run
-`ssh ... docker inspect --format '{{index .RepoDigests 0}}' pub.kiwitcms.eu/kiwitcms/kiwitcms:latest`
-and set `kiwi_image_tag` to `latest@sha256:...` style digest in `vars.yml`.
+**Image pinning:** all three images are pinned by digest in `ansible/group_vars/all/vars.yml`
+(`scripts/image-digests.sh` prints current values; needs `skopeo`). The Kiwi pin was taken from Docker Hub's
+`kiwitcms/kiwitcms`, which `pub.kiwitcms.eu` proxies, and has not been pulled through `pub.kiwitcms.eu` yet.
+Before the first deploy with these pins, compare it with what runs now
+(`ssh ... docker inspect --format '{{index .RepoDigests 0}}' kiwi-web-1`) and use the running digest if you do not
+want Kiwi upgraded as a side effect. Update pins deliberately: run the script, review, commit.
 On the first run check `docker compose exec web /Kiwi/manage.py shell -c "from django.conf import settings as s; print(s.SECRET_KEY[:4])"`:
 it must NOT be the image default (confirm `KIWI_SECRET_KEY` is honoured).
 
