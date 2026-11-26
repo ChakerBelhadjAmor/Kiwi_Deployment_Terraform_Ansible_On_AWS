@@ -41,3 +41,10 @@ resource "aws_iam_instance_profile" "kiwi" {
   name_prefix = "${var.project_tag}-vm-"
   role        = aws_iam_role.kiwi.name
 }
+
+# Lets the VM register with AWS Systems Manager, so you can open a shell or an
+# SSH tunnel without exposing port 22 (see variable ssh_ingress_enabled).
+resource "aws_iam_role_policy_attachment" "ssm" {
+  role       = aws_iam_role.kiwi.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}

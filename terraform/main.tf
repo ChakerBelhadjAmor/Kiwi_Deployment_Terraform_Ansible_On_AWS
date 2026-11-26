@@ -64,6 +64,8 @@ resource "aws_security_group" "kiwi" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "ssh" {
+  count = var.ssh_ingress_enabled ? 1 : 0
+
   security_group_id = aws_security_group.kiwi.id
   description       = "SSH from admin IP only"
   cidr_ipv4         = var.admin_cidr

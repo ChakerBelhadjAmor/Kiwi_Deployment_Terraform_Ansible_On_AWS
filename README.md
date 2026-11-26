@@ -191,3 +191,37 @@ sudo sh -c 'rm -rf /var/lib/docker/volumes/kiwi_kiwi_db/_data/*'    # only after
 The playbook refuses to mount the disk over a data directory that still holds files, so skipping the migration cannot
 hide your data. The disk has no `prevent_destroy` (it would block the end-of-month `terraform destroy`); the daily
 snapshots are the safety net. This path is **not tested on a real VM**: take a backup first.
+
+## Access without an open SSH port (SSM)
+
+The VM's role includes `AmazonSSMManagedInstanceCore`, so you can reach it through AWS Systems Manager instead of port 22.
+Needs the AWS CLI and the [Session Manager plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) on your machine.
+
+```sh
+terraform -chdir=terraform apply                       # attaches the SSM policy
+terraform -chdir=terraform output -raw ssm_shell_command   # a shell on the VM, no SSH key needed
+terraform -chdir=terraform output -raw ssm_ssh_config      # add to ~/.ssh/config: SSH (and Ansible) over SSM
+```
+Check that it works **before** closing the port: `aws ssm describe-instance-information` must list the instance
+(registration can take a few minutes). Then set `ssh_ingress_enabled = false` in `terraform.tfvars` and `terraform apply`.
+With SSH off, `terraform apply` also rewrites `ansible/inventory/hosts.ini` so Ansible goes through SSM (an
+`ansible_ssh_common_args` ProxyCommand); `ansible_host` stays the Elastic IP because the Caddy role compares it with the DNS answer.
+If SSM ever breaks, set `ssh_ingress_enabled = true` again (your `admin_cidr` rule comes back).
+
+## Short-lived AWS credentials instead of access keys
+
+Terraform and the CLI currently use a long-lived IAM user key (`~/.aws/credentials`, profile `kiwi`). Prefer SSO:
+
+1. Enable IAM Identity Center in the account and assign yourself a permission set (admin for this project).
+2. `aws configure sso` (profile `kiwi`), then `aws sso login --profile kiwi` when the session expires.
+3. Remove the `[kiwi]` block from `~/.aws/credentials`, then deactivate and delete the old access key in IAM.
+Nothing in this repo has to change: Terraform and the CLI read the same `AWS_PROFILE`. For CI, plan jobs would use GitHub
+OIDC (a role trusted for this repository, no stored keys); that needs repository variables for the Terraform inputs and is
+not set up yet.
+
+## State and backup bucket protections
+
+`terraform/bootstrap` also denies non-TLS requests on the state and backup buckets and writes S3 access logs
+(who read or wrote state and backups) to `kiwi-tfstate-logs-<account-id>`, kept 90 days. Apply it like the other bootstrap changes:
+`cd terraform/bootstrap && terraform apply`. The buckets use SSE-S3, not a customer-managed KMS key (about $1/month per key, no extra
+protection for this threat model).
