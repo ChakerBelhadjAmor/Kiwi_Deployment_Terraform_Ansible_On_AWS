@@ -12,15 +12,9 @@ output "ssh_command" {
 resource "local_file" "ansible_inventory" {
   filename        = "${path.module}/../ansible/inventory/hosts.ini"
   file_permission = "0600"
-  content         = <<-EOT
-    [kiwi]
-    kiwi-vm ansible_host=${aws_eip.kiwi.public_ip} ansible_user=ubuntu
-  EOT
-}
-
-output "data_volume_id" {
-  description = "EBS volume id of the optional data disk (set kiwi_data_volume_id in ansible vars); empty when off."
-  value       = one(aws_ebs_volume.data[*].id)
+  # With ssh_ingress_enabled = false, Ansible reaches the VM through SSM; ansible_host stays
+  # the Elastic IP because the Caddy role compares it with the DNS answer.
+  content = "[kiwi]\nkiwi-vm ansible_host=${aws_eip.kiwi.public_ip} ansible_user=ubuntu${var.ssh_ingress_enabled ? "" : " ansible_ssh_common_args='-o ProxyCommand=\"aws ssm start-session --target ${aws_instance.kiwi.id} --region ${var.region} --document-name AWS-StartSSHSession --parameters portNumber=%p\"'"}\n"
 }
 
 output "instance_id" {

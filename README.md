@@ -201,8 +201,8 @@ terraform -chdir=terraform output -raw ssm_ssh_config      # add to ~/.ssh/confi
 ```
 Check that it works **before** closing the port: `aws ssm describe-instance-information` must list the instance
 (registration can take a few minutes). Then set `ssh_ingress_enabled = false` in `terraform.tfvars` and `terraform apply`.
-For Ansible over SSM, set `ansible_host` in `ansible/inventory/hosts.ini` to the instance id (`i-...`) and use the
-`ProxyCommand` block above; the playbook's DNS wait still uses the Elastic IP, so keep `public_ip` handy.
+With SSH off, `terraform apply` also rewrites `ansible/inventory/hosts.ini` so Ansible goes through SSM (an
+`ansible_ssh_common_args` ProxyCommand); `ansible_host` stays the Elastic IP because the Caddy role compares it with the DNS answer.
 If SSM ever breaks, set `ssh_ingress_enabled = true` again (your `admin_cidr` rule comes back).
 
 ## Short-lived AWS credentials instead of access keys
