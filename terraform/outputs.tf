@@ -17,3 +17,8 @@ resource "local_file" "ansible_inventory" {
     kiwi-vm ansible_host=${aws_eip.kiwi.public_ip} ansible_user=ubuntu
   EOT
 }
+
+output "data_volume_id" {
+  description = "EBS volume id of the optional data disk (set kiwi_data_volume_id in ansible vars); empty when off."
+  value       = one(aws_ebs_volume.data[*].id)
+}
