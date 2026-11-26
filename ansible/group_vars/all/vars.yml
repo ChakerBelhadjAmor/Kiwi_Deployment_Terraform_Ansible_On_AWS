@@ -15,3 +15,9 @@ kiwi_backup_keep_days: 7
 
 # Production by default. For a first run use staging via: ansible-playbook site.yml -e caddy_acme_staging=true
 caddy_acme_staging: false
+
+# Off-VM backups. Set to the `backup_bucket_name` output of terraform/bootstrap
+# (kiwi-backups-<account-id>) once the bucket and the instance role exist.
+# Empty = local backups only.
+kiwi_backup_bucket: ""
+kiwi_aws_cli_image: amazon/aws-cli:2.27.0

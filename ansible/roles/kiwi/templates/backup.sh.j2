@@ -1,7 +1,8 @@
 #!/bin/bash
 # Daily Kiwi backup: DB dump plus the uploads and Caddy cert volumes.
-# Keeps {{ kiwi_backup_keep_days }} days. Copy {{ kiwi_backup_dir }} off the VM yourself (scp);
-# no cloud credentials are stored here.
+# Keeps {{ kiwi_backup_keep_days }} days locally{% if kiwi_backup_bucket | length > 0 %} and uploads each run to s3://{{ kiwi_backup_bucket }}
+# with the VM's instance role (write-only, no stored credentials){% else %}. No S3 bucket is configured
+# (kiwi_backup_bucket is empty): copy {{ kiwi_backup_dir }} off the VM yourself (scp){% endif %}.
 set -euo pipefail
 cd {{ kiwi_dir }}
 stamp=$(date +%F-%H%M)
@@ -18,4 +19,12 @@ for vol in kiwi_uploads kiwi_caddy_data; do
 done
 
 chmod 600 "$dir"/*-"$stamp"*
+{% if kiwi_backup_bucket | length > 0 %}
+
+# The container uses the host network because IMDSv2 allows a single hop, so
+# the instance-role credentials are not reachable from the default bridge.
+docker run --rm --network host -v "$dir":/out:ro {{ kiwi_aws_cli_image }} \
+  s3 cp /out s3://{{ kiwi_backup_bucket }}/"$stamp"/ --recursive \
+  --exclude '*' --include "*-$stamp*" --only-show-errors
+{% endif %}
 find "$dir" -name '*.gz' -mtime +{{ kiwi_backup_keep_days }} -delete
