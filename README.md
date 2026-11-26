@@ -225,3 +225,21 @@ not set up yet.
 (who read or wrote state and backups) to `kiwi-tfstate-logs-<account-id>`, kept 90 days. Apply it like the other bootstrap changes:
 `cd terraform/bootstrap && terraform apply`. The buckets use SSE-S3, not a customer-managed KMS key (about $1/month per key, no extra
 protection for this threat model).
+
+## Monitoring and alerts
+
+`terraform apply` creates an SNS topic and CloudWatch alarms that email the `alert_email` address:
+VM host failure (also **auto-recovers** the instance on healthy hardware, same disk and IP), OS not responding,
+CPU credits nearly exhausted (t3 throttles when they run out), and sustained CPU above 90%.
+AWS sends a confirmation email first: **click the link** or no alert will arrive.
+Test it: `aws cloudwatch set-alarm-state --alarm-name kiwi-tcms-cpu-high --state-value ALARM --state-reason test`.
+
+Not covered: free disk space and memory (they need the CloudWatch agent) and an external "is the site up" check.
+`df -h` and `docker stats` over SSH or SSM are the manual check for now.
+
+## Container and proxy hardening
+
+All three containers run with `no-new-privileges`. Caddy also runs with a read-only root filesystem and only the
+`NET_BIND_SERVICE` capability, and sends HSTS, `X-Content-Type-Options`, `X-Frame-Options: SAMEORIGIN`, a Referrer-Policy and a
+Permissions-Policy, and hides the `Server` header. No Content-Security-Policy yet: Kiwi uses inline scripts, so a CSP needs
+testing in the browser before it is enabled.
