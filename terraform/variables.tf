@@ -58,3 +58,9 @@ variable "data_volume_size_gb" {
     error_message = "data_volume_size_gb must be 0 (off) or at least 5."
   }
 }
+
+variable "ssh_ingress_enabled" {
+  description = "Open port 22 to admin_cidr. Set to false once you connect through SSM Session Manager (README)."
+  type        = bool
+  default     = true
+}
