@@ -1,7 +1,8 @@
 #!/bin/bash
 # Daily Kiwi backup: DB dump plus the uploads and Caddy cert volumes.
-# Keeps {{ kiwi_backup_keep_days }} days. Copy {{ kiwi_backup_dir }} off the VM yourself (scp);
-# no cloud credentials are stored here.
+# Keeps {{ kiwi_backup_keep_days }} days locally{% if kiwi_backup_bucket | length > 0 %} and uploads each run to s3://{{ kiwi_backup_bucket }}
+# with the VM's instance role (write-only, no stored credentials){% else %}. No S3 bucket is configured
+# (kiwi_backup_bucket is empty): copy {{ kiwi_backup_dir }} off the VM yourself (scp){% endif %}.
 set -euo pipefail
 cd {{ kiwi_dir }}
 stamp=$(date +%F-%H%M)
@@ -13,9 +14,21 @@ gzip -t "$tmp"
 [ "$(stat -c %s "$tmp")" -gt 1024 ] || { echo "dump suspiciously small" >&2; rm -f "$tmp"; exit 1; }
 mv "$tmp" "$dir/kiwi-$stamp.sql.gz"
 
-for vol in kiwi_uploads kiwi_caddy_data; do
-  docker run --rm -v "$vol":/data:ro -v "$dir":/out alpine tar -czf "/out/$vol-$stamp.tar.gz" -C /data .
+# archive-name=docker-volume-name (compose prefixes the project name to volumes)
+for pair in kiwi_uploads={{ kiwi_uploads_volume }} kiwi_caddy_data={{ kiwi_caddy_volume }}; do
+  name=${pair%%=*}
+  vol=${pair#*=}
+  docker volume inspect "$vol" >/dev/null   # fail loudly instead of archiving a fresh empty volume
+  docker run --rm -v "$vol":/data:ro -v "$dir":/out alpine tar -czf "/out/$name-$stamp.tar.gz" -C /data .
 done
 
 chmod 600 "$dir"/*-"$stamp"*
+{% if kiwi_backup_bucket | length > 0 %}
+
+# The container uses the host network because IMDSv2 allows a single hop, so
+# the instance-role credentials are not reachable from the default bridge.
+docker run --rm --network host -v "$dir":/out:ro {{ kiwi_aws_cli_image }} \
+  s3 cp /out s3://{{ kiwi_backup_bucket }}/"$stamp"/ --recursive \
+  --exclude '*' --include "*-$stamp*" --only-show-errors
+{% endif %}
 find "$dir" -name '*.gz' -mtime +{{ kiwi_backup_keep_days }} -delete

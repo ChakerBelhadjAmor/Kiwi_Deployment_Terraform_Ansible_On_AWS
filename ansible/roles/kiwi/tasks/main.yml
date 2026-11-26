@@ -1,4 +1,8 @@
 ---
+- name: Set up the optional data disk
+  ansible.builtin.include_tasks: data_volume.yml
+  when: kiwi_data_volume_id | length > 0
+
 - name: Create backup directory
   ansible.builtin.file:
     path: "{{ kiwi_backup_dir }}"
@@ -122,6 +126,14 @@
   ansible.builtin.template:
     src: backup.sh.j2
     dest: /usr/local/sbin/kiwi-backup.sh
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Install restore script
+  ansible.builtin.template:
+    src: restore.sh.j2
+    dest: /usr/local/sbin/kiwi-restore.sh
     owner: root
     group: root
     mode: "0750"

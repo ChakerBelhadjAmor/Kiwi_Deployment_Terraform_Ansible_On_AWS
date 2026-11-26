@@ -108,6 +108,7 @@ resource "aws_instance" "kiwi" {
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.kiwi.id]
   key_name               = aws_key_pair.admin.key_name
+  iam_instance_profile   = aws_iam_instance_profile.kiwi.name
 
   metadata_options {
     http_endpoint = "enabled"
@@ -119,6 +120,8 @@ resource "aws_instance" "kiwi" {
     volume_size           = 30
     encrypted             = true
     delete_on_termination = true
+
+    tags = { Snapshot = "daily" } # picked up by the DLM policy in snapshots.tf
   }
 
   tags = { Name = "${var.project_tag}-vm" }

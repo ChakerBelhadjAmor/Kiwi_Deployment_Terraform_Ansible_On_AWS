@@ -100,7 +100,7 @@ Never set `KIWI_INSECURE_TLS` against the real server: it has a valid certificat
 `curl -sI http://<host>` redirects to HTTPS; the certificate is valid; only 22 (your IP),
 80, 443 are reachable; `ssh ... free -m` shows swap; a reboot brings the site back.
 A backup (DB dump + uploads + Caddy cert volume) runs daily at 02:30 into `/var/backups/kiwi` (7 days kept,
-on the same disk: `scp` it to your machine before teardown):
+on the same disk; with `kiwi_backup_bucket` set each run is also uploaded to S3, see "Backups and restore"):
 `ssh ... sudo /usr/local/sbin/kiwi-backup.sh`.
 
 ## 5. Teardown (end of the month)
@@ -145,3 +145,46 @@ terraform state push old.tfstate     # review first with: terraform show old.tfs
 `.github/workflows/ci.yml` runs on every PR and push to `main`: `terraform fmt`/`validate` (no backend, no AWS),
 `ansible-lint` + syntax-check, importer tests, and gitleaks. `main` is protected by a ruleset: PR required,
 those four checks must pass, no force-push.
+
+## Backups and restore
+
+Three layers: a nightly dump on the VM (7 days), the same files uploaded to S3, and daily EBS snapshots of the disk.
+
+**Turn on the S3 copy** (once, in this order):
+```sh
+cd terraform/bootstrap && terraform apply      # creates kiwi-backups-<account-id> (versioned, encrypted, 30 days)
+cd .. && terraform apply                       # creates the VM role (write-only to that bucket) and the DLM snapshot policy
+# set kiwi_backup_bucket: kiwi-backups-<account-id> in ansible/group_vars/all/vars.yml, then:
+cd ../ansible && ansible-playbook site.yml
+ssh ... sudo /usr/local/sbin/kiwi-backup.sh    # run once by hand, then check the bucket has a <stamp>/ folder
+```
+The VM can only add objects to the bucket (no read, list or delete), so a compromised host cannot erase its backups.
+The bucket is in `terraform/bootstrap`, so `terraform destroy` of the stack does not delete it.
+
+**Restore** (new or existing VM, after `ansible-playbook site.yml` has deployed the stack):
+```sh
+aws s3 ls s3://kiwi-backups-<account-id>/                      # pick a <stamp>, e.g. 2026-11-26-0230
+sudo mkdir -p /var/backups/kiwi
+aws s3 cp s3://kiwi-backups-<account-id>/<stamp>/ /var/backups/kiwi/ --recursive   # run where you have read access (your laptop), then scp to the VM
+sudo /usr/local/sbin/kiwi-restore.sh <stamp>                   # asks you to type "yes"; replaces the DB and uploads
+```
+Test a restore once before you need it. `kiwi-restore.sh` was exercised end to end against a throwaway
+MariaDB stack (backup, destroy data, restore, compare); it has not run on the real VM yet.
+
+## Separate data disk (optional)
+
+By default MariaDB's data lives on the VM's root disk. To keep it on its own encrypted EBS disk (it survives a VM
+replacement), set `data_volume_size_gb = 20` in `terraform.tfvars` and `terraform apply`, then migrate **once**:
+
+```sh
+# on the VM
+cd /opt/kiwi && docker compose stop web db
+sudo mkdir /mnt/newdb && sudo mkfs.ext4 /dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_<volume-id-without-dash>
+sudo mount /dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_<volume-id-without-dash> /mnt/newdb
+sudo rsync -a /var/lib/docker/volumes/kiwi_kiwi_db/_data/ /mnt/newdb/ && sudo umount /mnt/newdb
+sudo sh -c 'rm -rf /var/lib/docker/volumes/kiwi_kiwi_db/_data/*'    # only after checking the copy and a fresh backup
+# then, from your machine: set kiwi_data_volume_id (terraform output data_volume_id) in vars.yml and run the playbook
+```
+The playbook refuses to mount the disk over a data directory that still holds files, so skipping the migration cannot
+hide your data. The disk has no `prevent_destroy` (it would block the end-of-month `terraform destroy`); the daily
+snapshots are the safety net. This path is **not tested on a real VM**: take a backup first.

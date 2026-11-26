@@ -47,3 +47,14 @@ variable "budget_limit_usd" {
   type        = number
   default     = 30
 }
+
+variable "data_volume_size_gb" {
+  description = "Size of a separate EBS disk for the MariaDB data (0 = off, data stays on the root disk)."
+  type        = number
+  default     = 0
+
+  validation {
+    condition     = var.data_volume_size_gb == 0 || var.data_volume_size_gb >= 5
+    error_message = "data_volume_size_gb must be 0 (off) or at least 5."
+  }
+}

@@ -15,3 +15,20 @@ kiwi_backup_keep_days: 7
 
 # Production by default. For a first run use staging via: ansible-playbook site.yml -e caddy_acme_staging=true
 caddy_acme_staging: false
+
+# Off-VM backups. Set to the `backup_bucket_name` output of terraform/bootstrap
+# (kiwi-backups-<account-id>) once the bucket and the instance role exist.
+# Empty = local backups only.
+kiwi_backup_bucket: ""
+kiwi_aws_cli_image: amazon/aws-cli:2.27.0
+
+# Docker volume names. Compose prefixes the project name (`kiwi`) to volumes
+# without an explicit name, so `kiwi_uploads` becomes `kiwi_kiwi_uploads`.
+kiwi_uploads_volume: kiwi_kiwi_uploads
+kiwi_caddy_volume: kiwi_caddy_data
+
+# Optional separate EBS disk for MariaDB (terraform output `data_volume_id`).
+# Empty = data stays on the root disk. Migrate first: README "Separate data disk".
+kiwi_data_volume_id: ""
+kiwi_db_volume: kiwi_kiwi_db
+kiwi_db_mountpoint: "/var/lib/docker/volumes/{{ kiwi_db_volume }}/_data"
