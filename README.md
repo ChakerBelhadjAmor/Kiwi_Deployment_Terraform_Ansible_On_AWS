@@ -4,6 +4,15 @@ Provisions one `t3.small` EC2 VM in `eu-north-1` and runs Kiwi TCMS behind Caddy
 with a free DuckDNS name and a Let's Encrypt certificate. Expected cost is about
 $21 for one month. Everything is removed by `terraform destroy`.
 
+## Releases
+
+| Version | What it is | Details and architecture diagram |
+|---|---|---|
+| **v2.0.0** | The hardened deployment: S3 backups and restore, pinned images, SSM access, alarms, container hardening | [releases/v2.0.0](releases/v2.0.0/README.md) |
+| **v1.0.0** | The first complete deployment: Terraform, Ansible, Caddy, Kiwi, importer, CI, remote state | [releases/v1.0.0](releases/v1.0.0/README.md) |
+
+Each page explains exactly what the release contains and includes an [Eraser](https://eraser.io) architecture diagram (source in `diagram.eraser`).
+
 **Never commit:** `terraform.tfvars`, `*.tfstate`, `vault.yml`, `inventory/hosts.ini`,
 keys, `~/.tcms.conf`. `.gitignore` covers them; `git status` must stay clean of them.
 
