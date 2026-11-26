@@ -2,12 +2,16 @@
 # Non-secret settings. Secrets live in vault.yml (encrypted, gitignored).
 swap_size_mb: 2048
 
-# Kiwi publishes no versioned images on Docker Hub; the official registry only
-# serves :latest. Record the pulled image digest in README after first deploy.
+# Images are pinned by digest so the same commit always deploys the same bytes.
+# Kiwi only publishes :latest, so its tag stays and the digest does the pinning.
+# Refresh with scripts/image-digests.sh, review, commit. Before the FIRST deploy of
+# these pins, compare the Kiwi digest with what runs now:
+#   docker inspect --format '{{index .RepoDigests 0}}' <web container image>
+# and use that value if you do not want to upgrade Kiwi as a side effect.
 kiwi_image: pub.kiwitcms.eu/kiwitcms/kiwitcms
-kiwi_image_tag: latest
-mariadb_image_tag: "11.8"
-caddy_image_tag: "2.11-alpine"
+kiwi_image_tag: "latest@sha256:cd10e0a3c921f6476408eda8727bd56b45b7285ad529beb3ec0e0d4d15a0a4a2"
+mariadb_image_tag: "11.8@sha256:e1d5495f445654134f226f55a41ce0da227116f6f27f283101f405c794d841fc"
+caddy_image_tag: "2.11-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0"
 
 kiwi_dir: /opt/kiwi
 kiwi_backup_dir: /var/backups/kiwi
