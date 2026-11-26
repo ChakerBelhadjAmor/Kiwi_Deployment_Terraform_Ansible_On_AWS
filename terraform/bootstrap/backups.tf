@@ -35,7 +35,7 @@ resource "aws_s3_bucket_public_access_block" "backups" {
   restrict_public_buckets = true
 }
 
-# Keep 30 days of backups, then expire current and old versions.
+# Keep 30 days of backups; overwritten (noncurrent) versions also kept 30 days.
 resource "aws_s3_bucket_lifecycle_configuration" "backups" {
   bucket = aws_s3_bucket.backups.id
 
@@ -50,7 +50,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "backups" {
     }
 
     noncurrent_version_expiration {
-      noncurrent_days = 7
+      noncurrent_days = 30 # a compromised VM could overwrite a key; the good version must outlive the retention window
     }
 
     abort_incomplete_multipart_upload {
