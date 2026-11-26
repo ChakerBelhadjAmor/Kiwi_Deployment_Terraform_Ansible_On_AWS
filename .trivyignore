@@ -1,0 +1,5 @@
+# Reviewed and accepted findings for `trivy config`. One id per line, with the reason.
+# Public web ports are the point of the service; SSH is restricted to admin_cidr.
+AVD-AWS-0107
+# Outbound is open on purpose: apt, Docker pulls, Let's Encrypt, DuckDNS. Restricting it is brittle.
+AVD-AWS-0104
