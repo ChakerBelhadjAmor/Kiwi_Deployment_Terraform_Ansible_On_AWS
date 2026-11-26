@@ -3,3 +3,6 @@
 AVD-AWS-0107
 # Outbound is open on purpose: apt, Docker pulls, Let's Encrypt, DuckDNS. Restricting it is brittle.
 AVD-AWS-0104
+# Buckets use SSE-S3 (AES256). A customer-managed KMS key costs about $1/month per key and
+# adds no protection against the threats here (no cross-account access, public access blocked).
+AVD-AWS-0132
