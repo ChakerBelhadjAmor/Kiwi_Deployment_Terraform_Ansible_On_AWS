@@ -6,6 +6,15 @@
 
 {% endif %}
 {{ vault_duckdns_subdomain }}.duckdns.org {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
 	# Self-registration is disabled: accounts are created by the admin only.
 	@register path /accounts/register/*
 	respond @register "Registration is disabled" 403
